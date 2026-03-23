@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -50,7 +51,6 @@ public class BackupService {
     private String backupDir;
 
     public Path createBackupFile() {
-        BackupJob job = createJob("BACKUP_STARTED", null);
 
         try {
             Files.createDirectories(Paths.get(backupDir));
@@ -58,6 +58,7 @@ public class BackupService {
             String ts = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
             String fileName = "backup_" + dbName + "_" + ts + ".sql";
             Path outFile = Paths.get(backupDir).resolve(fileName);
+            String fullPath = outFile.toAbsolutePath().toString();
 
             List<String> cmd = List.of(
                     pgDumpPath,
@@ -69,24 +70,24 @@ public class BackupService {
                     "--if-exists",
                     "--no-owner",
                     "--no-privileges",
-                    "-f", outFile.toAbsolutePath().toString()
+                    "-f", fullPath
             );
 
             runProcess(cmd);
 
             if (!Files.exists(outFile) || Files.size(outFile) == 0) {
-                saveJobResult(job, "BACKUP_FAILED", outFile.toAbsolutePath().toString());
+                createJob("BACKUP_FAILED", fullPath);
                 throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Backup file is empty");
             }
 
-            saveJobResult(job, "BACKUP_SUCCESS", outFile.toAbsolutePath().toString());
+            createJob("BACKUP_SUCCESS", fullPath);
             return outFile;
 
         } catch (IOException e) {
-            saveJobResult(job, "BACKUP_FAILED", null);
+            createJob("BACKUP_FAILED", null);
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Backup failed: " + e.getMessage());
         } catch (RuntimeException e) {
-            saveJobResult(job, "BACKUP_FAILED", null);
+            createJob("BACKUP_FAILED", null);
             throw e;
         }
     }
@@ -109,8 +110,6 @@ public class BackupService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only .sql files are allowed");
         }
 
-        BackupJob job = createJob("RESTORE_STARTED", originalName);
-
         Path tempSql = null;
 
         try {
@@ -118,6 +117,7 @@ public class BackupService {
 
             String ts = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
             tempSql = Paths.get(backupDir).resolve("restore_" + ts + ".sql");
+            String fullPath = tempSql.toAbsolutePath().toString();
 
             try (InputStream in = file.getInputStream()) {
                 Files.copy(in, tempSql, StandardCopyOption.REPLACE_EXISTING);
@@ -129,18 +129,18 @@ public class BackupService {
                     "-p", port,
                     "-U", user,
                     "-d", dbName,
-                    "-f", tempSql.toAbsolutePath().toString()
+                    "-f", fullPath
             );
 
             runProcess(cmd);
 
-            saveJobResult(job, "RESTORE_SUCCESS", tempSql.toAbsolutePath().toString());
+            createJob("RESTORE_SUCCESS", fullPath);
 
         } catch (IOException e) {
-            saveJobResult(job, "RESTORE_FAILED", tempSql != null ? tempSql.toAbsolutePath().toString() : originalName);
+            createJob("RESTORE_FAILED", tempSql != null ? tempSql.toAbsolutePath().toString() : originalName);
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Restore failed: " + e.getMessage());
-        } catch (RuntimeException e) {
-            saveJobResult(job, "RESTORE_FAILED", tempSql != null ? tempSql.toAbsolutePath().toString() : originalName);
+        } catch (Exception e) {
+            createJob("RESTORE_FAILED", tempSql != null ? tempSql.toAbsolutePath().toString() : originalName);
             throw e;
         } finally {
             if (tempSql != null) {
@@ -194,12 +194,5 @@ public class BackupService {
         job.setStatus(status);
         job.setFilePath(filePath);
         return backupJobRepository.save(job);
-    }
-
-    private void saveJobResult(BackupJob job, String status, String filePath) {
-        job.setBackupTime(LocalDateTime.now());
-        job.setStatus(status);
-        job.setFilePath(filePath);
-        backupJobRepository.save(job);
     }
 }
