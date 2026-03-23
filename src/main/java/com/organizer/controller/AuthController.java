@@ -19,7 +19,7 @@ public class AuthController {
     private final UserRepository userRepository;
 
     @PostMapping("/register")
-    public AuthResponse register(@RequestBody RegisterRequest request) {
+    public User register(@RequestBody RegisterRequest request) {
         return authService.register(request);
     }
 

@@ -25,7 +25,7 @@ public class AuthService {
     private final CustomUserDetailsService customUserDetailsService;
     private final JwtService jwtService;
 
-    public AuthResponse register(RegisterRequest request) {
+    public User register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new RuntimeException("User with this email already exists");
         }
@@ -46,7 +46,7 @@ public class AuthService {
         UserDetails userDetails = customUserDetailsService.loadUserByUsername(user.getEmail());
         String token = jwtService.generateToken(userDetails);
 
-        return new AuthResponse(token);
+        return user;
     }
 
     public AuthResponse login(LoginRequest request) {

@@ -1,8 +1,11 @@
 package com.organizer.controller;
 
+import com.organizer.dto.RegisterRequest;
 import com.organizer.dto.UpdateUserRolesRequest;
 import com.organizer.dto.UserListItemResponse;
 import com.organizer.entity.User;
+import com.organizer.entity.UserCreateDTO;
+import com.organizer.service.AuthService;
 import com.organizer.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +18,7 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final AuthService authService;
 
     @GetMapping
     public List<User> getAll() {
@@ -34,8 +38,8 @@ public class UserController {
     }
 
     @PostMapping
-    public User create(@RequestBody User user) {
-        return userService.save(user);
+    public User create(@RequestBody RegisterRequest registerRequest) {
+        return authService.register(registerRequest);
     }
 
     @PutMapping("/{id}")
