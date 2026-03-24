@@ -60,25 +60,25 @@ CREATE TRIGGER trg_payment_check
 
 
 
--- ------------------------------------------------------------
--- Триггер автоматического времени изменения свадьбы
--- ------------------------------------------------------------
-CREATE OR REPLACE FUNCTION update_wedding_timestamp()
-    RETURNS TRIGGER
-    LANGUAGE plpgsql
-AS $$
-BEGIN
+-- -- ------------------------------------------------------------
+-- -- Триггер автоматического времени изменения свадьбы
+-- -- ------------------------------------------------------------
+-- CREATE OR REPLACE FUNCTION update_wedding_timestamp()
+--     RETURNS TRIGGER
+--     LANGUAGE plpgsql
+-- AS $$
+-- BEGIN
+--
+--     NEW.updated_at = now();
+-- RETURN NEW;
+--
+-- END;
+-- $$;
 
-    NEW.updated_at = now();
-RETURN NEW;
-
-END;
-$$;
-
-CREATE TRIGGER trg_update_wedding_time
-    BEFORE UPDATE ON weddings
-    FOR EACH ROW
-    EXECUTE FUNCTION update_wedding_timestamp();
+-- CREATE TRIGGER trg_update_wedding_time
+--     BEFORE UPDATE ON weddings
+--     FOR EACH ROW
+--     EXECUTE FUNCTION update_wedding_timestamp();
 
 
 
